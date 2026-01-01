@@ -1,6 +1,10 @@
+import { EventEmitter } from "events";
+
+declare class BaseClient extends EventEmitter {}
+
 declare namespace NodeMax {
-  class MaxClient {}
-  class SocketMaxClient {}
+  class MaxClient extends BaseClient {}
+  class SocketMaxClient extends BaseClient {}
 
   class InvalidPhoneError extends Error {
     phone: string;
