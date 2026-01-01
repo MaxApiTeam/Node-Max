@@ -1,9 +1,3 @@
-class MissingAuth extends Error {
-  constructor() {
-    super("Missing phone number or token to authorize");
-  }
-}
-
 class InvalidPhoneError extends Error {
   constructor(phone) {
     super(`Invalid phone number format: ${phone}`);
@@ -41,4 +35,4 @@ class QRExpiredError extends Error {
   }
 }
 
-module.exports = { MissingAuth, InvalidPhoneError, AppOldError, FailedToLoginError, InvalidPayloadError, InvalidQRDataError, QRExpiredError };
+module.exports = { InvalidPhoneError, AppOldError, FailedToLoginError, InvalidPayloadError, InvalidQRDataError, QRExpiredError };

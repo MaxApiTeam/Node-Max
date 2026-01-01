@@ -3,7 +3,7 @@ var fs = require("fs");
 var { EventEmitter } = require("events");
 var util = require("./util.js");
 var { Opcode } = require("./enums.js");
-var { MissingAuth, InvalidPhoneError, AppOldError, FailedToLoginError, InvalidPayloadError, InvalidQRDataError, QRExpiredError } = require("./errors.js");
+var { InvalidPhoneError, AppOldError, FailedToLoginError, InvalidPayloadError, InvalidQRDataError, QRExpiredError } = require("./errors.js");
 var { Dialog, Chat, Channel, User, Me } = require("./types.js");
 var chalk = require("chalk");
 var WebSocket = require("ws");
@@ -32,10 +32,7 @@ class BaseClient extends EventEmitter {
       deviceId = uuid.v4();
     }
 
-    if (!phone && !token) {
-      throw new MissingAuth;
-    }
-    if (!util.checkPhone(phone)) {
+    if (phone && !util.checkPhone(phone)) {
       throw new InvalidPhoneError(phone);
     }
 
@@ -289,4 +286,18 @@ class MaxClient extends BaseClient {
   }
 }
 
-module.exports = { MaxClient };
+// TODO
+class SocketMaxClient extends BaseClient {
+  constructor({ host, port, ...options }) {
+    if (typeof host === "undefined") {
+      host = "api.oneme.ru";
+    }
+    if (typeof port === "undefined") {
+      port = 443;
+    }
+    super({ host, port, ...options });
+    this._log("debug", `Initialized SocketMaxClient host=${this.host} port=${this.port} workDir=${options.workDir || "."}`);
+  }
+}
+
+module.exports = { MaxClient, SocketMaxClient };
