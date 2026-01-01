@@ -1,5 +1,5 @@
 var fs = require("fs");
-var path = require("path");
+//var path = require("path");
 var { EventEmitter } = require("events");
 var util = require("./util.js");
 var { Opcode } = require("./enums.js");
@@ -12,8 +12,8 @@ var uuid = require("uuid");
 var qrcode = require("qrcode-terminal");
 
 class BaseClient extends EventEmitter {
-  #databasePath;
-  #database;
+  //#databasePath;
+  //#database;
   #logLevel;
 
   constructor({ phone, uri, headers, token, sendFakeTelemetry, host, port, proxy, workDir, sessionName, registration, firstName, lastName, deviceId, reconnect, reconnectDelay }) {
@@ -81,9 +81,9 @@ class BaseClient extends EventEmitter {
         "recursive": true
       });
     }
-    this.#databasePath = path.join(workDir, sessionName);
-    // TODO
-    this.#database = null;
+    // TODO: Database
+    //this.#databasePath = path.join(workDir, sessionName);
+    //this.#database = null;
     this.#logLevel = 2;
   }
 
