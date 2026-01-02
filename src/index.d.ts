@@ -182,7 +182,7 @@ declare namespace NodeMax {
 
   class Dialog {
     constructor(data: {
-      public cid: int
+      public cid: int | null
       public owner: int
       public hasBots: boolean
       public joinTime: int
@@ -191,12 +191,12 @@ declare namespace NodeMax {
       public type: "CHANNEL" | "CHAT" | "DIALOG"
       public lastFireDelayedErrorTime: int
       public lastDelayedUpdateTime: int
-      public prevMessageId: str | null
+      public prevMessageId: string | null
       public options: { [key: string]: boolean }
       public modified: int
       public lastEventTime: int
       public id: int
-      public status: str
+      public status: string
       public participants: { [key: string]: int }
     })
     lastMessage: Message

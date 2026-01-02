@@ -2,14 +2,14 @@ class Dialog {
   constructor(data) {
     this.cid = data.cid;
     this.owner = data.owner;
-    this.hasBots = data.hasBots;
+    this.hasBots = (data.hasBots || false);
     this.joinTime = data.joinTime;
     this.created = data.created;
     this.lastMessage = (data.lastMessage ? new Message(data.lastMessage) : null);
     this.type = data.type;
     this.lastFireDelayedErrorTime = data.lastFireDelayedErrorTime;
     this.lastDelayedUpdateTime = data.lastDelayedUpdateTime;
-    this.prevMessageId = data.prevMessageId;
+    this.prevMessageId = (data.prevMessageId || null);
     this.options = (data.options || {});
     this.modified = data.modified;
     this.lastEventTime = data.lastEventTime;

@@ -212,7 +212,7 @@ class BaseClient extends EventEmitter {
   }
   async _sync() {
     this._log("info", "Starting initial sync");
-    var data = await this._sendAndWait(Opcode.LOGIN, {
+    await this._sendAndWait(Opcode.LOGIN, {
       "interactive": true,
       "token": this.token,
       "chatsSync": 0,
@@ -222,14 +222,15 @@ class BaseClient extends EventEmitter {
       "chatsCount": 40,
       "userAgent": this.userAgent
     });
+    var data = await this._waitPacket();
     data = data.payload;
     for (var chat of (data.chats || [])) {
       if (chat.type == "DIALOG") {
-        this.dialogs.append(new Dialog(chat));
+        this.dialogs.push(new Dialog(chat));
       } else if (chat.type == "CHAT") {
-        this.chats.append(new Chat(chat));
+        this.chats.push(new Chat(chat));
       } else if (chat.type == "CHANNEL") {
-        this.channels.append(new Channel(chat));
+        this.channels.push(new Channel(chat));
       }
     }
     for (var user of (data.contacts || [])) {
@@ -292,11 +293,14 @@ class MaxClient extends BaseClient {
     }));
     this._seq++;
   }
-  _sendAndWait(opcode, payload, cmd) {
-    this._send(opcode, payload, cmd);
+  _waitPacket() {
     return new Promise(res => {
       this._connection.once("message", data => res(JSON.parse(data.toString("utf-8"))))
     });
+  }
+  _sendAndWait(opcode, payload, cmd) {
+    this._send(opcode, payload, cmd);
+    return this._waitPacket();
   }
 }
 
