@@ -1,6 +1,7 @@
 var fs = require("fs");
 var path = require("path");
 var { EventEmitter } = require("events");
+var tls = require("tls");
 var util = require("./util.js");
 var { Opcode } = require("./enums.js");
 var { InvalidPhoneError, AppOldError, FailedToLoginError, InvalidPayloadError, InvalidQRDataError, QRExpiredError } = require("./errors.js");
@@ -10,6 +11,8 @@ var WebSocket = require("ws");
 var UserAgent = require("user-agents");
 var uuid = require("uuid");
 var qrcode = require("qrcode-terminal");
+var { pack, unpack } = require("msgpackr");
+var LZ4 = require("lz4");
 
 class BaseClient extends EventEmitter {
   #databasePath;
@@ -282,6 +285,10 @@ class BaseClient extends EventEmitter {
       "notify": data.notify
     });
   }
+  _sendAndWait(opcode, payload, cmd) {
+    this._send(opcode, payload, cmd);
+    return this._waitPacket();
+  }
 }
 
 class MaxClient extends BaseClient {
@@ -339,16 +346,11 @@ class MaxClient extends BaseClient {
   }
   _waitPacket() {
     return new Promise(res => {
-      this._connection.once("message", data => res(JSON.parse(data.toString("utf-8"))))
+      this._connection.once("message", data => res(JSON.parse(data.toString("utf-8"))));
     });
-  }
-  _sendAndWait(opcode, payload, cmd) {
-    this._send(opcode, payload, cmd);
-    return this._waitPacket();
   }
 }
 
-// TODO
 class SocketMaxClient extends BaseClient {
   constructor({ host, port, ...options } = {}) {
     if (typeof host === "undefined") {
@@ -359,6 +361,120 @@ class SocketMaxClient extends BaseClient {
     }
     super({ host, port, ...options });
     this._log("debug", `Initialized SocketMaxClient host=${this.host} port=${this.port} workDir=${options.workDir || "."}`);
+    this._socketQueue = [];
+  }
+  _connect() {
+    this._log("info", `Connecting to socket ${this.host}:${this.port}`);
+    this._connection = tls.connect({
+      "host": this.host,
+      "port": this.port,
+      "servername": this.host,
+      "rejectUnauthorized": true,
+      "timeout": 15000
+    });
+    this._connection.setKeepAlive(true);
+    this._connection.on("error", err => {
+      this._log("error", `SSL handshake failed: ${err}`);
+    });
+    this._connection.on("timeout", () => {
+      this._log("error", "SSL handshake timeout");
+      this._connection.destroy();
+    });
+    this._connection.on("end", () => {
+      this.isConnected = false;
+      this._log("info", `Socket connection closed; exiting recv loop`);
+      if (this.reconnect) {
+        setTimeout(() => this.start(), this.reconnectDelay * 1000);
+      }
+    });
+    this._connection.on("data", data => {
+      this._handlePacket(this._unpackPacket(data));
+    });
+    return new Promise(res => {
+      this._connection.on("secureConnect", () => {
+        this._connection.setTimeout(60000);
+        this.isConnected = true;
+        this._log("info", "Socket connected, starting handshake");
+        this._handshake().then(() => res());
+      });
+    });
+  }
+  _packPacket(ver, cmd, seq, opcode, payload) {
+    var payloadBytes = pack(payload) || Buffer.alloc(0);
+    var payloadLen = payloadBytes.length & 0xFFFFFF;
+    this._log("debug", `Packing message: payload size=${payloadBytes.length} bytes`);
+    var header = Buffer.alloc(10);
+    var offset = 0;
+    offset = header.writeUInt8(ver, offset);
+    offset = header.writeUInt16BE(cmd, offset);
+    offset = header.writeUInt8(seq % 256, offset);
+    offset = header.writeUInt16BE(opcode, offset);
+    offset = header.writeUInt32BE(payloadLen, offset);
+    return Buffer.concat([header, payloadBytes]);
+  }
+  _unpackPacket(data) {
+    var offset = 0;
+    var ver = data.readUInt8(offset);
+    offset += 1;
+    var cmd = data.readUInt16BE(offset);
+    offset += 2;
+    var seq = data.readUInt8(offset);
+    offset += 1;
+    var opcode = data.readUInt16BE(offset);
+    offset += 2;
+    var packedLen = data.readUInt32BE(offset);
+    offset += 4;
+    var compFlag = packedLen >> 24;
+    var payloadLength = packedLen & 0xFFFFFF;
+    var payloadBytes = data.slice(offset, offset + payloadLength);
+    var payload = null;
+    if (payloadBytes.length > 0) {
+      if (compFlag !== 0) {
+        var decompressedBytes = Buffer.alloc(9999);
+        var decompressedSize = LZ4.decodeBlock(payloadBytes, decompressedBytes);
+        payloadBytes = decompressedBytes.subarray(0, decompressedSize);
+      }
+      payload = unpack(payloadBytes);
+    }
+    return { ver, cmd, seq, opcode, payload };
+  }
+  _send(opcode, payload, cmd) {
+    if (typeof payload === "undefined") {
+      payload = {};
+    }
+    if (typeof cmd === "undefined") {
+      cmd = 0;
+    }
+    this._log("debug", `Sending frame opcode=${opcode} cmd=${cmd} seq=${this._seq}`);
+    var packet = this._packPacket(11, cmd, this._seq, opcode, payload);
+    if (!this._socketLocked) {
+      this._socketLocked = true;
+      if (this._connection.write(packet)) {
+        this._socketLocked = false;
+      } else {
+        this._connection.once("drain", () => {
+          this._socketLocked = false;
+          var queue = this._socketQueue;
+          this._socketQueue = [];
+          queue.forEach(queuedPacket => this._send(queuedPacket));
+        });
+      }
+    } else {
+      this._socketQueue.push(packet);
+    }
+    this._seq++;
+  }
+  _waitPacket() {
+    return new Promise(res => {
+      this._connection.once("data", data => {
+        try {
+          res(this._unpackPacket(data));
+        } catch(err) {
+          console.error(err);
+          this._log("warn", "Failed to unpack packet, skipping");
+        }
+      });
+    });
   }
 }
 
