@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 
 declare class BaseClient extends EventEmitter {
-  constructor({ phone, uri, headers, token, sendFakeTelemetry, host, port, proxy, workDir, sessionName, registration, firstName, lastName, deviceId, reconnect, reconnectDelay }?: {
+  constructor(data?: {
     phone?: string
     uri?: string = "wss://api-ws.oneme.ru/websocket"
     headers?: any
@@ -180,11 +180,76 @@ declare namespace NodeMax {
     "LOGIN_BY_QR": 291
   };
 
-  class Dialog {}
+  class Dialog {
+    constructor(data: {
+      public cid: int
+      public owner: int
+      public hasBots: boolean
+      public joinTime: int
+      public created: int
+      lastMessage: {}
+      public type: "CHANNEL" | "CHAT" | "DIALOG"
+      public lastFireDelayedErrorTime: int
+      public lastDelayedUpdateTime: int
+      public prevMessageId: str | null
+      public options: { [key: string]: boolean }
+      public modified: int
+      public lastEventTime: int
+      public id: int
+      public status: str
+      public participants: { [key: string]: int }
+    })
+    lastMessage: Message
+  }
   class Chat {}
-  class Channel {}
-  class User {}
-  class Me {}
+  class Channel extends Chat {}
+  class User {
+    constructor(data: {
+      public accountStatus: int
+      public updateTime: int
+      public id: int
+      names: {
+        name: string
+        firstName: string
+        lastName: string
+        type: string
+      }[]
+      public options: string[]
+      public baseUrl: string
+      public baseRawUrl: string
+      public photoId: int | null
+      public description: string | null
+      public gender: int | null
+      public link: string | null
+      public webApp: string
+      public menuButton: { [key: string]: any } | null
+    })
+    names: Name[]
+  }
+  class Me {
+    constructor(data: {
+      public id: int
+      public accountStatus: int
+      names: {
+        name: string
+        firstName: string
+        lastName: string
+        type: string
+      }[],
+      public updateTime: int
+      public options: string[]
+    })
+    names: Name[]
+  }
+  class Message {}
+  class Name {
+    constructor(data: {
+      public name: string
+      public firstName: string
+      public lastName: string
+      public type: string
+    })
+  }
 }
 
 export = NodeMax;
