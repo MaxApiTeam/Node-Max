@@ -56,8 +56,28 @@ class Me {
   }
 }
 
-// TODO
-class Message {}
+class Message {
+  constructor(data) {
+    if (data.id) {
+      data = {
+        "message": data
+      };
+    }
+    this.chatId = data.chatId;
+    this.sender = data.message.sender;
+    this.elements = (data.elements || []).map(element => new Element(element));
+    this.options = data.message.options;
+    this.id = data.message.id;
+    this.time = data.message.time;
+    this.text = data.message.text;
+    this.type = data.message.type;
+    // TODO
+    this.attaches = [];
+    this.status = data.message.status;
+    this.link = (data.message.link ? new MessageLink(data.message.link) : null);
+    this.reactionInfo = (data.message.reactionInfo ? new ReactionInfo(data.message.reactionInfo) : null);
+  }
+}
 
 class Name {
   constructor(data) {
@@ -68,4 +88,35 @@ class Name {
   }
 }
 
-module.exports = { Dialog, Chat, Channel, User, Me, Message, Name };
+class Element {
+  constructor(data) {
+    this.type = data.type;
+    this.length = data.length;
+    this.from = data.from;
+  }
+}
+
+class MessageLink {
+  constructor(data) {
+    this.chatId = data.chatId;
+    this.message = (data.message ? new Message(data.message) : null);
+    this.type = data.type;
+  }
+}
+
+class ReactionInfo {
+  constructor(data) {
+    this.totalCount = data.totalCount;
+    this.counters = (data.counters || []).map(counter => new ReactionCounter(counter));
+    this.yourReaction = data.yourReaction;
+  }
+}
+
+class ReactionCounter {
+  constructor(data) {
+    this.count = data.count;
+    this.reaction = data.reaction;
+  }
+}
+
+module.exports = { Dialog, Chat, Channel, User, Me, Message, Name, Element, MessageLink, ReactionInfo, ReactionCounter };

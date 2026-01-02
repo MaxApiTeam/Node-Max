@@ -4,7 +4,7 @@ var { EventEmitter } = require("events");
 var util = require("./util.js");
 var { Opcode } = require("./enums.js");
 var { InvalidPhoneError, AppOldError, FailedToLoginError, InvalidPayloadError, InvalidQRDataError, QRExpiredError } = require("./errors.js");
-var { Dialog, Chat, Channel, User, Me } = require("./types.js");
+var { Dialog, Chat, Channel, User, Me, Message } = require("./types.js");
 var chalk = require("chalk");
 var WebSocket = require("ws");
 var UserAgent = require("user-agents");
@@ -241,6 +241,47 @@ class BaseClient extends EventEmitter {
     }
     this._log("info", `Sync completed: dialogs=${this.dialogs.length} chats=${this.chats.length} channels=${this.channels.length}`);
   }
+  async _handlePacket(packet) {
+    var { payload } = packet;
+    if (packet.opcode == Opcode.NOTIF_MESSAGE) {
+      var msg = new Message(payload);
+      if (msg.chatId && msg.id) {
+        this._send(Opcode.NOTIF_MESSAGE, {
+          "chatId": msg.chatId,
+          "messageId": msg.id.toString()
+        }, 1);
+        this._log("debug", `Sent NOTIF_MESSAGE_RECEIVED for chat_id=${msg.chatId} message_id=${msg.id}`);
+      }
+      if (payload.status == "EDITED") {
+        this.emit("messageEdit", msg);
+      } else if (payload.status == "REMOVED") {
+        this.emit("messageDelete", msg);
+      } else {
+        this.emit("message", msg);
+      }
+    }
+  }
+  sendMessage(chatId, data) {
+    if (typeof data === "string") {
+      data = {
+        "text": data
+      };
+    }
+    if (typeof data.notify === "undefined") {
+      data.notify = true;
+    }
+    this._log("info", `Sending message to chat_id=${chatId} notify=${data.notify}`);
+    this._send(Opcode.MSG_SEND, {
+      chatId,
+      "message": {
+        "text": data.text,
+        "cid": -Date.now(),
+        "elements": [],
+        "attaches": []
+      },
+      "notify": data.notify
+    });
+  }
 }
 
 class MaxClient extends BaseClient {
@@ -268,6 +309,9 @@ class MaxClient extends BaseClient {
       if (this.reconnect) {
         setTimeout(() => this.start(), this.reconnectDelay * 1000);
       }
+    });
+    this._connection.on("message", data => {
+      this._handlePacket(JSON.parse(data.toString("utf-8")));
     });
     return new Promise(res => {
       this._connection.on("open", () => {

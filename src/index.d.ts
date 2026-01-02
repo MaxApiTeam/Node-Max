@@ -241,13 +241,79 @@ declare namespace NodeMax {
     })
     names: Name[]
   }
-  class Message {}
+  class Message {
+    constructor(data: {
+      public chatId: int | null
+      public sender: int | null
+      elements: {
+        type: "EMPHASIZED" | "STRIKETHROUGH" | "STRONG" | "UNDERLINE"
+        length: int
+        from: int | null
+      }[]
+      reactionInfo: {
+        totalCount: int
+        counters: {
+          count: int
+          reaction: string
+        }[]
+        yourReaction: string | null
+      }
+      public options: int | null
+      public id: int
+      public time: int
+      link: {
+        public chatId: int
+        message: {}
+        public type: string
+      }
+      public text: string
+      public status: "EDITED" | "REMOVED" | null
+      public type: "SERVICE" | "SYSTEM" | "TEXT"
+      attaches: {}[]
+    })
+    elements: Element[]
+    reactionInfo: ReactionInfo
+    link: MessageLink
+    attaches: {}[]
+  }
   class Name {
     constructor(data: {
       public name: string
       public firstName: string
       public lastName: string
       public type: string
+    })
+  }
+  class Element {
+    constructor(data: {
+      public type: "EMPHASIZED" | "STRIKETHROUGH" | "STRONG" | "UNDERLINE"
+      public length: int
+      public from: int | null
+    })
+  }
+  class MessageLink {
+    constructor(data: {
+      public chatId: int
+      message: {}
+      public type: string
+    })
+    message: Message
+  }
+  class ReactionInfo {
+    constructor(data: {
+      public totalCount: int
+      counters: {
+        count: int
+        reaction: string
+      }[]
+      public yourReaction: string | null
+    })
+    counters: ReactionCounter[]
+  }
+  class ReactionCounter {
+    constructor(data: {
+      public count: int
+      public reaction: string
     })
   }
 }
