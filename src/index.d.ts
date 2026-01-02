@@ -1,6 +1,27 @@
 import { EventEmitter } from "events";
 
-declare class BaseClient extends EventEmitter {}
+declare class BaseClient extends EventEmitter {
+  constructor({ phone, uri, headers, token, sendFakeTelemetry, host, port, proxy, workDir, sessionName, registration, firstName, lastName, deviceId, reconnect, reconnectDelay }?: {
+    phone?: string
+    uri?: string = "wss://api-ws.oneme.ru/websocket"
+    headers?: any
+    token?: string
+    sendFakeTelemetry?: boolean = true
+    host?: string = "api.oneme.ru"
+    port?: number = 443
+    proxy?: any
+    workDir?: string = "."
+    sessionName?: string = "session.db"
+    registration?: boolean = false
+    firstName?: string
+    lastName?: string
+    deviceId?: string
+    reconnect?: boolean = true
+    reconnectDelay?: number = 1
+  })
+  setLogLevel(level: "error" | "warn" | "info" | "debug")
+  start(): Promise<undefined>
+}
 
 declare namespace NodeMax {
   class MaxClient extends BaseClient {}
