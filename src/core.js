@@ -1,5 +1,5 @@
 var fs = require("fs");
-//var path = require("path");
+var path = require("path");
 var { EventEmitter } = require("events");
 var util = require("./util.js");
 var { Opcode } = require("./enums.js");
@@ -12,12 +12,13 @@ var uuid = require("uuid");
 var qrcode = require("qrcode-terminal");
 
 class BaseClient extends EventEmitter {
-  //#databasePath;
-  //#database;
+  #databasePath;
   #logLevel;
 
   constructor({ phone, uri, headers, token, sendFakeTelemetry, host, port, proxy, workDir, sessionName, registration, firstName, lastName, deviceId, reconnect, reconnectDelay }) {
     super();
+
+    this.#databasePath = path.join(workDir, sessionName);
 
     if (typeof sendFakeTelemetry === "undefined") {
       sendFakeTelemetry = true;
@@ -28,7 +29,11 @@ class BaseClient extends EventEmitter {
     if (typeof sessionName === "undefined") {
       sessionName = "session.db";
     }
-    if (typeof deviceId === "undefined") {
+    if (typeof token === "undefined") {
+      var database = JSON.parse(fs.readFileSync(this.#databasePath).toString("utf-8"));
+      token = database.token;
+      deviceId = database.deviceId;
+    } else if (typeof deviceId === "undefined") {
       deviceId = uuid.v4();
     }
 
@@ -78,9 +83,6 @@ class BaseClient extends EventEmitter {
         "recursive": true
       });
     }
-    // TODO: Database
-    //this.#databasePath = path.join(workDir, sessionName);
-    //this.#database = null;
     this.#logLevel = 2;
   }
 
@@ -110,6 +112,12 @@ class BaseClient extends EventEmitter {
     await this._connect();
     if (!this.token) {
       await this._login();
+    }
+    if (this.token) {
+      fs.writeFileSync(this.#databasePath, JSON.stringify({
+        "deviceId": this.deviceId,
+        "token": this.token
+      }));
     }
     await this._sync();
     this._log("debug", `is_connected=${this.isConnected} before starting ping`);
