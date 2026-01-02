@@ -15,10 +15,8 @@ class BaseClient extends EventEmitter {
   #databasePath;
   #logLevel;
 
-  constructor({ phone, uri, headers, token, sendFakeTelemetry, host, port, proxy, workDir, sessionName, registration, firstName, lastName, deviceId, reconnect, reconnectDelay }) {
+  constructor({ phone, uri, headers, token, sendFakeTelemetry, host, port, proxy, workDir, sessionName, registration, firstName, lastName, deviceId, reconnect, reconnectDelay } = {}) {
     super();
-
-    this.#databasePath = path.join(workDir, sessionName);
 
     if (typeof sendFakeTelemetry === "undefined") {
       sendFakeTelemetry = true;
@@ -27,13 +25,24 @@ class BaseClient extends EventEmitter {
       workDir = ".";
     }
     if (typeof sessionName === "undefined") {
-      sessionName = "session.db";
+      sessionName = "session.json";
     }
+    if (!fs.existsSync(workDir)) {
+      fs.mkdirSync(workDir, {
+        "recursive": true
+      });
+    }
+    this.#databasePath = path.join(workDir, sessionName);
+    if (!fs.existsSync(this.#databasePath)) {
+      fs.writeFileSync(this.#databasePath, "{}");
+    }
+
     if (typeof token === "undefined") {
       var database = JSON.parse(fs.readFileSync(this.#databasePath).toString("utf-8"));
       token = database.token;
       deviceId = database.deviceId;
-    } else if (typeof deviceId === "undefined") {
+    }
+    if (!deviceId) {
       deviceId = uuid.v4();
     }
 
@@ -78,11 +87,6 @@ class BaseClient extends EventEmitter {
     this._connection = null;
     this._seq = 0;
     this._users = {};
-    if (!fs.existsSync(workDir)) {
-      fs.mkdirSync(workDir, {
-        "recursive": true
-      });
-    }
     this.#logLevel = 2;
   }
 
@@ -219,7 +223,7 @@ class BaseClient extends EventEmitter {
       "userAgent": this.userAgent
     });
     data = data.payload;
-    for (var chat of data.chats) {
+    for (var chat of (data.chats || [])) {
       if (chat.type == "DIALOG") {
         this.dialogs.append(new Dialog(chat));
       } else if (chat.type == "CHAT") {
@@ -228,7 +232,7 @@ class BaseClient extends EventEmitter {
         this.channels.append(new Channel(chat));
       }
     }
-    for (var user of data.contacts) {
+    for (var user of (data.contacts || [])) {
       this.contacts.push(new User(user));
     }
     if (data.profile && data.profile.contact) {
@@ -239,7 +243,7 @@ class BaseClient extends EventEmitter {
 }
 
 class MaxClient extends BaseClient {
-  constructor({ uri, ...options }) {
+  constructor({ uri, ...options } = {}) {
     if (typeof uri === "undefined") {
       uri = "wss://ws-api.oneme.ru/websocket";
     }
@@ -258,6 +262,7 @@ class MaxClient extends BaseClient {
       }
     });
     this._connection.on("close", (code, reason) => {
+      this.isConnected = false;
       this._log("info", `WebSocket connection closed with error: ${code}, ${reason}; exiting recv loop`);
       if (this.reconnect) {
         setTimeout(() => this.start(), this.reconnectDelay * 1000);
@@ -265,6 +270,7 @@ class MaxClient extends BaseClient {
     });
     return new Promise(res => {
       this._connection.on("open", () => {
+        this.isConnected = true;
         this._log("info", "WebSocket connected, starting handshake");
         this._handshake().then(() => res());
       });
@@ -296,7 +302,7 @@ class MaxClient extends BaseClient {
 
 // TODO
 class SocketMaxClient extends BaseClient {
-  constructor({ host, port, ...options }) {
+  constructor({ host, port, ...options } = {}) {
     if (typeof host === "undefined") {
       host = "api.oneme.ru";
     }

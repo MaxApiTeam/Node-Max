@@ -11,7 +11,7 @@ declare class BaseClient extends EventEmitter {
     port?: number = 443
     proxy?: any
     workDir?: string = "."
-    sessionName?: string = "session.db"
+    sessionName?: string = "session.json"
     registration?: boolean = false
     firstName?: string
     lastName?: string
