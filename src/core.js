@@ -409,7 +409,7 @@ class SocketMaxClient extends BaseClient {
     offset = header.writeUInt16BE(cmd, offset);
     offset = header.writeUInt8(seq % 256, offset);
     offset = header.writeUInt16BE(opcode, offset);
-    offset = header.writeUInt32BE(payloadLen, offset);
+    header.writeUInt32BE(payloadLen, offset);
     return Buffer.concat([header, payloadBytes]);
   }
   _unpackPacket(data) {
